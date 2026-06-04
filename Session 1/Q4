@@ -1,0 +1,15 @@
+SELECT
+  a.date,
+  ROUND(
+    COUNT(DISTINCT b.user_id, b.receiver_id)::numeric
+    / COUNT(DISTINCT a.user_id, a.receiver_id),
+    2
+  ) AS acceptance_rate
+FROM fb_friend_requests a
+LEFT JOIN fb_friend_requests b
+  ON a.user_id = b.user_id
+ AND a.receiver_id = b.receiver_id
+ AND b.action = 'accepted'
+WHERE a.action = 'sent'
+GROUP BY a.date
+HAVING COUNT(DISTINCT b.user_id, b.receiver_id) > 0;

@@ -1,0 +1,34 @@
+WITH RECURSIVE d AS (
+  SELECT '2025-04-15'::date dt
+  UNION ALL
+  SELECT dt + 1
+  FROM d
+  WHERE dt < '2025-04-28'
+),
+p AS (
+  SELECT transaction_id,
+         transaction_date::date dt,
+         amount
+  FROM product_sales
+  WHERE product_id = 'PROD-2891'
+    AND country = 'US'
+    AND status = 'completed'
+    AND transaction_type = 'purchase'
+    AND transaction_date::date BETWEEN '2025-04-15' AND '2025-04-28'
+),
+r AS (
+  SELECT original_transaction_id,
+         SUM(amount) refund_amt
+  FROM product_sales
+  WHERE status = 'completed'
+    AND transaction_type = 'refund'
+  GROUP BY 1
+)
+SELECT
+  d.dt AS transaction_date,
+  COALESCE(SUM(p.amount - COALESCE(r.refund_amt,0)),0) AS daily_net_revenue
+FROM d
+LEFT JOIN p ON d.dt = p.dt
+LEFT JOIN r ON p.transaction_id = r.original_transaction_id
+GROUP BY 1
+ORDER BY 1;

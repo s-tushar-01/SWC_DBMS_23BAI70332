@@ -1,0 +1,56 @@
+WITH latest_date AS (
+    SELECT MAX(event_timestamp::date) AS max_date
+    FROM search_events
+),
+
+user_segments AS (
+    SELECT
+        a.user_id,
+        CASE
+            WHEN a.registration_date >= (
+                SELECT max_date - INTERVAL '30 days'
+                FROM latest_date
+            )
+            THEN 'new'
+            ELSE 'existing'
+        END AS user_segment
+    FROM accounts a
+),
+
+searches AS (
+    SELECT
+        event_id,
+        user_id,
+        session_id,
+        event_timestamp AS search_time
+    FROM search_events
+    WHERE event_type = 'search'
+),
+
+successful_searches AS (
+    SELECT DISTINCT
+        s.event_id
+    FROM searches s
+    JOIN search_events c
+        ON s.user_id = c.user_id
+       AND s.session_id = c.session_id
+       AND c.event_type = 'click'
+       AND c.event_timestamp BETWEEN s.search_time
+                                 AND s.search_time + INTERVAL '30 seconds'
+)
+
+SELECT
+    us.user_segment,
+    COUNT(*) AS total_searches,
+    COUNT(ss.event_id) AS successful_searches,
+    ROUND(
+        COUNT(ss.event_id)::NUMERIC / COUNT(*),
+        4
+    ) AS success_rate
+FROM searches s
+JOIN user_segments us
+    ON s.user_id = us.user_id
+LEFT JOIN successful_searches ss
+    ON s.event_id = ss.event_id
+GROUP BY us.user_segment
+ORDER BY us.user_segment;

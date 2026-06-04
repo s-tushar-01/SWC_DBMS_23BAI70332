@@ -1,0 +1,14 @@
+WITH t AS (
+  SELECT
+    user_id,
+    created_at,
+    ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY created_at) rn
+  FROM amazon_transactions
+)
+SELECT user_id
+FROM t a
+JOIN t b
+  ON a.user_id = b.user_id
+ AND a.rn = 1
+ AND b.rn = 2
+ AND b.created_at::date - a.created_at::date BETWEEN 1 AND 7;
